@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import { MobileNavigation } from '@/components/mobile-navigation';
 import { ArrowRight, BadgeCheck, Beef, Boxes, ChevronRight, Fish, Globe2, Leaf, Mail, MapPin, PackageCheck, Phone, ShieldCheck, Snowflake, Sprout, Wheat } from 'lucide-react';
 
 const categories = [
@@ -22,6 +23,7 @@ export default function Home() {
       <a href="#top" className="brand" aria-label="Tomah International home"><Image src="/images/tomah-logo-navy.jpg" alt="Tomah International" width={220} height={245} priority /></a>
       <nav aria-label="Primary navigation"><a href="#products">Products</a><a href="#about">About us</a><a href="#how-it-works">How it works</a><a href="#maple-shop">Maple shop</a></nav>
       <a className="button button-gold header-cta" href="mailto:info@tomahinc.com?subject=Wholesale%20quote%20request">Request a quote <ArrowRight size={17} /></a>
+      <MobileNavigation />
     </header>
 
     <section className="hero" id="top">
