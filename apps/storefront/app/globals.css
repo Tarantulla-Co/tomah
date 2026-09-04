@@ -113,7 +113,7 @@ footer{margin-top:100px;padding-top:80px;background:var(--navy);color:white}.foo
 
 /* ---------------------------- homepage hero v2 --------------------------- */
 .home-hero { background: var(--paper); padding-top: clamp(20px, 3vw, 36px); padding-bottom: 84px; }
-.home-hero-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: clamp(32px, 5vw, 64px); align-items: center; padding-block: clamp(24px, 4vw, 48px); min-height: 0; }
+.home-hero-grid { display: grid; grid-template-columns: minmax(0, 560px) 1fr; gap: clamp(32px, 4vw, 56px); align-items: center; padding-block: clamp(24px, 4vw, 48px); min-height: 0; }
 .home-hero-eyebrow { display: inline-flex; align-items: center; gap: 8px; margin: 0 0 14px; padding: 7px 15px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 12px; font-weight: 700; }
 .home-hero-eyebrow svg { color: var(--gold); }
 .home-hero-title { margin: 0; font-size: clamp(40px, 4.6vw, 62px); line-height: 1.08; letter-spacing: -.03em; color: var(--ink); font-weight: 500; }
