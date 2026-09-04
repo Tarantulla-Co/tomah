@@ -1,0 +1,1 @@
+import type {Metadata} from 'next';import {CheckoutForm} from '@/components/storefront/checkout-form';export const metadata:Metadata={title:'Checkout | Tomah International',robots:{index:false,follow:false}};export default function Page(){return <CheckoutForm/>}

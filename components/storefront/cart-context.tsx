@@ -1,0 +1,8 @@
+'use client';
+import {createContext,useContext,useEffect,useMemo,useState} from 'react';
+import type {ProductDetail,ProductVariant} from '@/lib/api/types';
+export type StoreCartItem={productId:string;slug:string;name:string;image:string;variant:ProductVariant;quantity:number};
+type Value={items:StoreCartItem[];ready:boolean;count:number;add:(p:ProductDetail,v:ProductVariant,q?:number)=>void;setQuantity:(variantId:string,q:number)=>void;clear:()=>void};
+const Context=createContext<Value|null>(null),KEY='tomah-storefront-cart-v1';
+export function StoreCartProvider({children}:{children:React.ReactNode}){const[items,setItems]=useState<StoreCartItem[]>([]),[ready,setReady]=useState(false);useEffect(()=>{try{const parsed=JSON.parse(localStorage.getItem(KEY)||'[]');if(Array.isArray(parsed))setItems(parsed)}catch{}setReady(true)},[]);useEffect(()=>{if(ready)localStorage.setItem(KEY,JSON.stringify(items))},[items,ready]);const value=useMemo<Value>(()=>({items,ready,count:items.reduce((n,i)=>n+i.quantity,0),add:(p,v,q=1)=>setItems(current=>{const found=current.find(i=>i.variant.id===v.id);return found?current.map(i=>i.variant.id===v.id?{...i,quantity:Math.min(20,i.quantity+q)}:i):[...current,{productId:p.id,slug:p.slug,name:p.name,image:p.image.url,variant:v,quantity:q}]}),setQuantity:(id,q)=>setItems(current=>q<1?current.filter(i=>i.variant.id!==id):current.map(i=>i.variant.id===id?{...i,quantity:Math.min(20,q)}:i)),clear:()=>setItems([])}),[items,ready]);return <Context.Provider value={value}>{children}</Context.Provider>}
+export function useStoreCart(){const value=useContext(Context);if(!value)throw new Error('Cart provider missing');return value}

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-export function MobileNavigation() {
+export function MobileNavigation({ links = [['Products', '#products'], ['About us', '#about'], ['How it works', '#how-it-works'], ['Maple shop', '/maple-shop']], actionLabel = 'Request a quote', actionHref = 'mailto:info@tomahinc.com?subject=Wholesale%20quote%20request' }: { links?: [string, string][]; actionLabel?: string; actionHref?: string }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -36,8 +36,8 @@ export function MobileNavigation() {
       {open ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
     </Button>
     <nav id="mobile-navigation-links" className="mobile-menu" aria-label="Mobile navigation" hidden={!open}>
-      {[['Products', '#products'], ['About us', '#about'], ['How it works', '#how-it-works'], ['Maple shop', '#maple-shop']].map(([label, href]) => <a key={href} href={href} onClick={() => { setOpen(false); trigger.current?.focus(); }}>{label}</a>)}
-      <a className="mobile-quote" href="mailto:info@tomahinc.com?subject=Wholesale%20quote%20request" onClick={() => setOpen(false)}>Request a quote</a>
+      {links.map(([label, href]) => <a key={href} href={href} onClick={() => { setOpen(false); trigger.current?.focus(); }}>{label}</a>)}
+      <a className="mobile-quote" href={actionHref} onClick={() => setOpen(false)}>{actionLabel}</a>
     </nav>
   </div>;
 }

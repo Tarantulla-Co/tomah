@@ -1,0 +1,1 @@
+import type {MetadataRoute} from 'next';export default function robots():MetadataRoute.Robots{const base=process.env.TOMAH_PUBLIC_SITE_URL||'https://tomah-international.tarantulla-co.chatgpt.site';return{rules:{userAgent:'*',allow:'/',disallow:['/checkout','/cart','/orders/']},sitemap:`${base}/sitemap.xml`}}

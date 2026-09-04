@@ -13,5 +13,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body className={`${heading.variable} ${body.variable}`}>{children}</body></html>;
+  return <html lang="en" data-api-mode={process.env.TOMAH_API_MODE === 'live' ? 'live' : 'mock'}><body className={`${heading.variable} ${body.variable}`}>{children}</body></html>;
 }
