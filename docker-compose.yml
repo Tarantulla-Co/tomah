@@ -1,0 +1,25 @@
+# Local development Postgres for the Tomah admin dashboard.
+# Usage:  docker compose up -d db
+# The connection string this produces matches .env.example:
+#   postgresql://tomah:tomah@localhost:5432/tomah_admin
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: tomah-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tomah
+      POSTGRES_PASSWORD: tomah
+      POSTGRES_DB: tomah_admin
+    ports:
+      - "5432:5432"
+    volumes:
+      - tomah_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tomah -d tomah_admin"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  tomah_db_data:

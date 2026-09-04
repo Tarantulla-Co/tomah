@@ -1,0 +1,107 @@
+/* =============================================================================
+   Tomah Admin — design tokens
+   Implements the "UI Direction" brief. Treat as a starting direction: revisit
+   spacing/tone once the storefront frontend exists so both apps match.
+
+   Colour balance target = 70 / 20 / 10
+     70% neutral  — white + light steel  (backgrounds, tables, borders)
+     20% Tomah Blue #0E2847 — structure & navigation only (sidebar active,
+          primary buttons, headers, nav icons, key metric numbers)
+     10% Camouflage Yellow #A18546 — ONE functional use (pending/draft/sent
+          status badges) + tiny highlight accents. Not a secondary UI colour.
+
+   Status badges use distinct hues, never shades of one accent, and never blue:
+     success/paid   -> green
+     failed/rejected-> red
+     pending/draft  -> camouflage yellow
+   ========================================================================== */
+
+/* --- TT Commons: enable once the licensed woff2 files are added ---
+@font-face {
+  font-family: "TT Commons";
+  src: url("/src/assets/fonts/TTCommons-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "TT Commons";
+  src: url("/src/assets/fonts/TTCommons-DemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: "TT Commons";
+  src: url("/src/assets/fonts/TTCommons-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
+}
+*/
+
+:root {
+  /* ---- brand ---- */
+  --color-blue: #0e2847; /* Tomah Blue */
+  --color-blue-700: #163a63;
+  --color-blue-600: #1f4d80;
+  --color-blue-050: #eef2f7;
+  --color-yellow: #a18546; /* Camouflage Yellow */
+  --color-yellow-050: #f6f0e3;
+  --color-yellow-700: #7c6534;
+
+  /* ---- neutrals (the 70%) ---- */
+  --color-white: #ffffff;
+  --color-steel: #d4d8dd; /* Light Steel */
+  --color-page: #f4f6f8; /* page background — steel tinted lighter */
+  --color-surface: #ffffff; /* cards, table body */
+  --color-surface-alt: #f8fafb; /* zebra / hover rows, subtle fills */
+  --color-border: #dfe3e8;
+  --color-border-strong: #c6ccd3;
+
+  /* ---- text ---- */
+  --color-text: #1b2733;
+  --color-text-muted: #5b6672;
+  --color-text-subtle: #8a939e;
+  --color-text-on-blue: #ffffff;
+
+  /* ---- status (badges only) ---- */
+  --status-success-bg: #e4f4ea;
+  --status-success-fg: #1c6b3f;
+  --status-danger-bg: #fce8e8;
+  --status-danger-fg: #a12525;
+  --status-pending-bg: var(--color-yellow-050);
+  --status-pending-fg: var(--color-yellow-700);
+  --status-neutral-bg: #eceff2;
+  --status-neutral-fg: #55606c;
+
+  /* ---- typography ---- */
+  --font-heading: "TT Commons", "DM Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-body: "DM Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.625rem;
+  --text-2xl: 2rem;
+
+  /* ---- radius / shadow / spacing ---- */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-pill: 999px;
+
+  --shadow-sm: 0 1px 2px rgba(14, 40, 71, 0.06), 0 1px 3px rgba(14, 40, 71, 0.08);
+  --shadow-md: 0 4px 12px rgba(14, 40, 71, 0.1);
+  --shadow-pop: 0 8px 28px rgba(14, 40, 71, 0.16);
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  --sidebar-width: 244px;
+  --topbar-height: 60px;
+}

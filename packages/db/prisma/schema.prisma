@@ -1,0 +1,662 @@
+// =============================================================================
+// Tomah International — shared data model
+// =============================================================================
+// This schema is the single source of truth for BOTH applications:
+//   • the owner/admin dashboard  (this repo)
+//   • the customer-facing storefront  (separate repo, separate developer)
+//
+// Guidelines for the storefront developer:
+//   • Treat every table below as read/write-shared. Coordinate migrations.
+//   • Public retail pricing = Product.retailPrice (+ variants). NEVER expose
+//     wholesalePrice / minimumOrderQuantity unless the requesting customer has
+//     an APPROVED WholesaleAccount (see WholesaleAccount.status).
+//   • Money is stored as Decimal(12,2) in the row's `currency` (ISO 4217).
+//   • Enences (status columns etc.) are Postgres enums — see the enum blocks.
+//   • Rows are rarely hard-deleted; prefer status transitions + AuditLog.
+// Phase 1 creates all tables. Later phases add API routes / UI on top of them.
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+  // "native" keeps local dev working; "rhel-openssl-3.0.x" is the AWS Lambda /
+  // Vercel Node runtime target so the query engine ships in the function bundle.
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  // Pooled connection (PgBouncer) — used by the API at runtime. On Supabase this
+  // is the ":6543" pooler URL with "?pgbouncer=true&connection_limit=1".
+  url = env("DATABASE_URL")
+  // Direct connection (":5432" on Supabase) — used only by `prisma migrate` /
+  // `prisma db push` / introspection, which can't run through PgBouncer.
+  // For local dev set DIRECT_URL to the same value as DATABASE_URL.
+  directUrl = env("DIRECT_URL")
+}
+
+// -----------------------------------------------------------------------------
+// Enums
+// -----------------------------------------------------------------------------
+
+/// Staff roles for the admin dashboard. Customers are NOT Users.
+enum UserRole {
+  ADMIN // full access, incl. settings + sensitive reports
+  ORDER_MANAGER // orders, quotes, invoices, wholesale accounts, customers
+  CONTENT_EDITOR // product catalogue + CMS content only
+}
+
+enum CustomerType {
+  RETAIL
+  WHOLESALE
+}
+
+enum WholesaleAccountStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ProductCategory {
+  POULTRY
+  PORK
+  MEATS
+  SEAFOOD
+  GRAINS
+  VEGETABLES_AND_FRIES
+  MAPLE_PRODUCTS
+}
+
+/// Where the current stock number came from. The accounting-software sync job
+/// (Phase 8) writes ACCOUNTING_SYNC rows; staff edits write MANUAL. When
+/// Product.stockSyncEnabled = false the sync job must skip the row so a manual
+/// override is not clobbered.
+enum StockSource {
+  MANUAL
+  ACCOUNTING_SYNC
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT // storefront checkout created; payment not yet confirmed. The
+  //                admin dashboard ignores orders in this state (they are not
+  //                real sales) until the payment webhook flips them to PAID.
+  PAID
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum ShippingCarrier {
+  USPS
+  UPS
+  FEDEX
+  DHL
+}
+
+enum QuoteStatus {
+  REQUESTED // customer submitted a request, not yet priced
+  DRAFT // staff is building / pricing it
+  SENT // sent to customer for approval
+  APPROVED // customer approved -> can convert to invoice
+  REJECTED // customer declined
+  EXPIRED // passed validUntil without approval
+  CONVERTED // an Invoice was generated from it
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  VOID
+}
+
+/// Status of pushing a paid invoice to the external accounting system.
+/// The concrete integration is a swappable adapter (Phase 4 defines the
+/// interface; Phase 8 wires up settings + triggers).
+enum AccountingSyncStatus {
+  NOT_SYNCED
+  PENDING
+  SYNCED
+  FAILED
+}
+
+// -----------------------------------------------------------------------------
+// Auth / staff
+// -----------------------------------------------------------------------------
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         UserRole
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  refreshTokens            RefreshToken[]
+  reviewedWholesaleAccounts WholesaleAccount[] @relation("WholesaleAccountReviewer")
+  quotesCreated            Quote[]            @relation("QuoteCreatedBy")
+  auditLogs                AuditLog[]         @relation("AuditLogActor")
+  settingsUpdated          Setting[]          @relation("SettingUpdatedBy")
+
+  @@index([role])
+  @@map("users")
+}
+
+/// One row per issued refresh token (hashed). Enables server-side revocation
+/// and "log out everywhere". Access tokens stay stateless JWTs.
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  userAgent String?
+  ipAddress String?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// -----------------------------------------------------------------------------
+// Customers (retail + wholesale)
+// -----------------------------------------------------------------------------
+
+model Customer {
+  id          String       @id @default(uuid())
+  type        CustomerType @default(RETAIL)
+  email       String       @unique
+  firstName   String
+  lastName    String
+  companyName String?
+  phone       String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  addresses        Address[]
+  orders           Order[]
+  quotes           Quote[]
+  invoices         Invoice[]
+  wholesaleAccount WholesaleAccount?
+
+  @@index([type])
+  @@map("customers")
+}
+
+model Address {
+  id               String   @id @default(uuid())
+  customerId       String
+  label            String? // e.g. "Warehouse", "Home"
+  contactName      String?
+  line1            String
+  line2            String?
+  city             String
+  region           String // state / province
+  postalCode       String
+  country          String   @default("US") // ISO 3166-1 alpha-2
+  phone            String?
+  isDefaultShipping Boolean @default(false)
+  isDefaultBilling Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  customer          Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  shippingForOrders Order[]  @relation("OrderShippingAddress")
+  billingForOrders  Order[]  @relation("OrderBillingAddress")
+
+  @@index([customerId])
+  @@map("addresses")
+}
+
+/// Wholesale application + approval record. APPROVED status is the gate that
+/// makes wholesale pricing visible to this customer everywhere in the system.
+model WholesaleAccount {
+  id         String                 @id @default(uuid())
+  customerId String                 @unique
+  status     WholesaleAccountStatus @default(PENDING)
+
+  // --- application intake (Phase 3) ---
+  businessName               String
+  businessRegistrationNumber String?
+  taxId                      String?
+  businessType               String? // "Restaurant", "Distributor", "Grocery", ...
+  website                    String?
+  contactName                String
+  contactEmail               String
+  contactPhone               String?
+  estimatedMonthlyVolume     String? // free text / range from the form
+  applicationNotes           String?
+
+  // --- review / audit trail (Phase 3) ---
+  reviewedById    String?
+  reviewedAt      DateTime?
+  reviewNotes     String?
+  rejectionReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  reviewedBy User?    @relation("WholesaleAccountReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@map("wholesale_accounts")
+}
+
+// -----------------------------------------------------------------------------
+// Product catalogue (Phase 2)
+// -----------------------------------------------------------------------------
+
+model Product {
+  id               String          @id @default(uuid())
+  sku              String          @unique
+  barcode          String? // UPC/EAN
+  name             String
+  slug             String          @unique
+  shortDescription String?
+  longDescription  String?
+  category         ProductCategory
+  countryOfOrigin  String? // ISO 3166-1 alpha-2 or free text
+  certifications   String[] // e.g. ["USDA Organic", "Halal", "Canada Grade A"]
+
+  // Pricing. retailPrice is public. wholesalePrice / MOQ are gated on an
+  // APPROVED WholesaleAccount and must never be sent to anonymous storefront
+  // requests.
+  currency               String   @default("USD")
+  retailPrice            Decimal? @db.Decimal(12, 2)
+  wholesalePrice         Decimal? @db.Decimal(12, 2)
+  minimumOrderQuantity   Int?
+  isRetailAvailable      Boolean  @default(true)
+  isWholesaleAvailable   Boolean  @default(false)
+
+  // Stock. Manual value now; overwritable by the accounting sync job later
+  // unless stockSyncEnabled = false (manual override wins).
+  stockQuantity     Int         @default(0)
+  stockSource       StockSource @default(MANUAL)
+  stockSyncEnabled  Boolean     @default(true)
+  stockUpdatedAt    DateTime    @default(now())
+
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  variants        ProductVariant[]
+  images          ProductImage[]
+  orderItems      OrderItem[]
+  quoteLineItems  QuoteLineItem[]
+  featured        FeaturedProduct?
+
+  @@index([category])
+  @@index([isPublished])
+  @@map("products")
+}
+
+/// A size / packaging variation of a product (e.g. "8 fl oz", "1 gal",
+/// "20 lb case"). Prices here override the parent when set.
+model ProductVariant {
+  id                   String   @id @default(uuid())
+  productId            String
+  name                 String
+  sku                  String   @unique
+  barcode              String?
+  retailPrice          Decimal? @db.Decimal(12, 2)
+  wholesalePrice       Decimal? @db.Decimal(12, 2)
+  minimumOrderQuantity Int?
+  stockQuantity        Int      @default(0)
+  weightGrams          Int?
+  isActive             Boolean  @default(true)
+  position             Int      @default(0)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  product        Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderItems     OrderItem[]
+  quoteLineItems QuoteLineItem[]
+
+  @@index([productId])
+  @@map("product_variants")
+}
+
+model ProductImage {
+  id        String   @id @default(uuid())
+  productId String
+  url       String
+  altText   String?
+  position  Int      @default(0)
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  /// Set when the file was uploaded through the admin (vs. an external URL the
+  /// user pasted). It is the object key for the configured storage adapter
+  /// (local disk today, swappable to S3/GCS later) and lets a delete also
+  /// remove the underlying file. NULL = externally-hosted URL, leave it alone.
+  storageKey String?
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("product_images")
+}
+
+// -----------------------------------------------------------------------------
+// Retail orders (Phase 5)
+// -----------------------------------------------------------------------------
+// Created by the storefront at checkout (see docs/DATA_MODEL.md). A checkout
+// writes the Order as PENDING_PAYMENT; the Paystack webhook (or, in dev, the
+// /public/checkout/:ref/confirm-dev endpoint) flips it to PAID, which is where
+// the admin fulfilment lifecycle begins. The admin API owns every transition
+// from PAID onward.
+
+model Order {
+  id          String      @id @default(uuid())
+  orderNumber String      @unique // human-facing, e.g. "TMH-10432"
+  customerId  String
+  // The DB default stays PAID (admin has no order-create path); the storefront
+  // checkout always writes status: PENDING_PAYMENT explicitly.
+  status      OrderStatus @default(PAID)
+
+  currency       String  @default("USD")
+  subtotal       Decimal @db.Decimal(12, 2)
+  shippingFee    Decimal @default(0) @db.Decimal(12, 2)
+  taxAmount      Decimal @default(0) @db.Decimal(12, 2)
+  discountAmount Decimal @default(0) @db.Decimal(12, 2)
+  total          Decimal @db.Decimal(12, 2)
+
+  // Payment (Paystack)
+  paymentProvider  String    @default("paystack")
+  paymentReference String?
+  paidAt           DateTime?
+
+  // Fulfilment / shipping
+  carrier        ShippingCarrier?
+  trackingNumber String?
+  processingAt   DateTime?
+  shippedAt      DateTime?
+  deliveredAt    DateTime?
+
+  shippingAddressId String?
+  billingAddressId  String?
+
+  customerNote String?
+  internalNote String?
+
+  cancelledAt  DateTime?
+  cancelReason String?
+  refundedAt   DateTime?
+  refundAmount Decimal?  @db.Decimal(12, 2)
+  refundReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  customer        Customer @relation(fields: [customerId], references: [id])
+  shippingAddress Address? @relation("OrderShippingAddress", fields: [shippingAddressId], references: [id], onDelete: SetNull)
+  billingAddress  Address? @relation("OrderBillingAddress", fields: [billingAddressId], references: [id], onDelete: SetNull)
+  items           OrderItem[]
+
+  @@index([customerId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+/// Line item with price/name snapshotted at purchase time so historical
+/// orders stay correct if the catalogue changes.
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String
+  productId String?
+  variantId String?
+  sku       String
+  name      String
+  unitPrice Decimal @db.Decimal(12, 2)
+  quantity  Int
+  lineTotal Decimal @db.Decimal(12, 2)
+
+  order   Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
+  variant ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+// -----------------------------------------------------------------------------
+// Wholesale quotes (Phase 4)
+// -----------------------------------------------------------------------------
+
+model Quote {
+  id          String      @id @default(uuid())
+  quoteNumber String      @unique // e.g. "TMH-Q-2041"
+  customerId  String
+  status      QuoteStatus @default(REQUESTED)
+
+  requestNote  String? // customer's notes on the request
+  internalNote String?
+  createdById  String? // staff member who built/priced the quote
+
+  currency       String   @default("USD")
+  subtotal       Decimal? @db.Decimal(12, 2)
+  taxAmount      Decimal? @db.Decimal(12, 2)
+  discountAmount Decimal? @db.Decimal(12, 2)
+  total          Decimal? @db.Decimal(12, 2)
+
+  validUntil      DateTime?
+  sentAt          DateTime?
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  rejectionReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  customer  Customer        @relation(fields: [customerId], references: [id])
+  createdBy User?           @relation("QuoteCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  lineItems QuoteLineItem[]
+  invoice   Invoice? // set once converted
+
+  @@index([customerId])
+  @@index([status])
+  @@map("quotes")
+}
+
+model QuoteLineItem {
+  id          String  @id @default(uuid())
+  quoteId     String
+  productId   String?
+  variantId   String?
+  description String // free text or product-name snapshot
+  quantity    Int
+  unitPrice   Decimal? @db.Decimal(12, 2) // null until staff prices the line
+  lineTotal   Decimal? @db.Decimal(12, 2)
+  notes       String?
+  position    Int      @default(0)
+
+  quote   Quote           @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  product Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
+  variant ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  @@index([quoteId])
+  @@map("quote_line_items")
+}
+
+// -----------------------------------------------------------------------------
+// Invoices (Phase 4)
+// -----------------------------------------------------------------------------
+
+model Invoice {
+  id            String        @id @default(uuid())
+  invoiceNumber String        @unique // e.g. "TMH-INV-3320"
+  customerId    String
+  quoteId       String?       @unique // null for a standalone invoice
+  status        InvoiceStatus @default(DRAFT)
+
+  currency       String  @default("USD")
+  subtotal       Decimal @db.Decimal(12, 2)
+  taxAmount      Decimal @default(0) @db.Decimal(12, 2)
+  discountAmount Decimal @default(0) @db.Decimal(12, 2)
+  total          Decimal @db.Decimal(12, 2)
+
+  issueDate DateTime  @default(now())
+  dueDate   DateTime?
+  sentAt    DateTime?
+  paidAt    DateTime?
+
+  // Payment (Paystack)
+  paymentProvider   String  @default("paystack")
+  paymentReference  String?
+  paystackAccessCode String?
+
+  // Accounting sync (adapter-based; see AccountingSyncStatus)
+  accountingSyncStatus AccountingSyncStatus @default(NOT_SYNCED)
+  accountingSyncedAt   DateTime?
+  accountingAdapter    String? // e.g. "quickbooks", "xero", "zoho"
+  accountingRef        String? // external record id
+  accountingError      String?
+
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  customer  Customer           @relation(fields: [customerId], references: [id])
+  quote     Quote?             @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+  lineItems InvoiceLineItem[]
+
+  @@index([customerId])
+  @@index([status])
+  @@map("invoices")
+}
+
+model InvoiceLineItem {
+  id          String  @id @default(uuid())
+  invoiceId   String
+  description String
+  quantity    Int
+  unitPrice   Decimal @db.Decimal(12, 2)
+  lineTotal   Decimal @db.Decimal(12, 2)
+  position    Int     @default(0)
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@map("invoice_line_items")
+}
+
+// -----------------------------------------------------------------------------
+// CMS content (Phase 7) — storefront-facing copy staff edit without a deploy.
+// The storefront reads the published rows; the admin owns all writes.
+// `isPublished` gates visibility, `position` orders lists on the site.
+// -----------------------------------------------------------------------------
+
+model Faq {
+  id          String   @id @default(uuid())
+  question    String
+  answer      String
+  category    String? // optional grouping, e.g. "Shipping", "Wholesale"
+  position    Int      @default(0)
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isPublished])
+  @@map("faqs")
+}
+
+model Testimonial {
+  id          String   @id @default(uuid())
+  authorName  String
+  authorTitle String? // "Head Chef, Northbay Grill"
+  quote       String
+  rating      Int? // 1–5, optional
+  position    Int      @default(0)
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isPublished])
+  @@map("testimonials")
+}
+
+/// Recipe / serving suggestion. `relatedProductIds` is a loose list of Product
+/// ids the storefront resolves + links; not a FK so a deleted product just
+/// drops out of the rendered list.
+model Recipe {
+  id                String   @id @default(uuid())
+  title             String
+  slug              String   @unique
+  summary           String?
+  ingredients       String[]
+  steps             String[]
+  imageUrl          String?
+  relatedProductIds String[]
+  position          Int      @default(0)
+  isPublished       Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([isPublished])
+  @@map("recipes")
+}
+
+/// Homepage featured-product selection — an ordered list. One row per featured
+/// Product; `position` is the slot on the homepage.
+model FeaturedProduct {
+  id        String   @id @default(uuid())
+  productId String   @unique
+  position  Int      @default(0)
+  note      String? // internal label / campaign note, not shown on the site
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("featured_products")
+}
+
+// -----------------------------------------------------------------------------
+// Settings (Phase 8) — one JSON blob per config group. ADMIN-only. Groups:
+// "payments" (Paystack keys — the secret is stored but never returned),
+// "shipping" (free-shipping threshold, default fee, per-region fee rules),
+// "tax" (default rate + per-region rates), "accounting" (adapter preference,
+// last manual-sync result). Reading a missing group yields a coded default.
+// -----------------------------------------------------------------------------
+
+model Setting {
+  key         String   @id
+  value       Json
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+
+  updatedBy User? @relation("SettingUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@map("settings")
+}
+
+// -----------------------------------------------------------------------------
+// Audit trail (used from Phase 3 onward: approvals, refunds, status changes)
+// -----------------------------------------------------------------------------
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String? // null = system / automated job
+  action     String // e.g. "wholesale_account.approved", "order.refunded"
+  entityType String // e.g. "WholesaleAccount", "Order"
+  entityId   String
+  summary    String?
+  metadata   Json? // before/after diff, amounts, reasons, ...
+  createdAt  DateTime @default(now())
+
+  actor User? @relation("AuditLogActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

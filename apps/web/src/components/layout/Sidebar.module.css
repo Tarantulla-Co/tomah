@@ -1,0 +1,119 @@
+.sidebar {
+  width: var(--sidebar-width);
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--topbar-height);
+  padding: 0 var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+  font-family: var(--font-heading);
+  color: var(--color-blue);
+}
+.mark {
+  color: var(--color-yellow); /* tiny highlight accent */
+  font-size: 0.7rem;
+}
+.brandText {
+  font-size: var(--text-md);
+  font-weight: 500;
+}
+.brandText strong {
+  font-weight: 700;
+}
+
+.nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4) var(--space-3);
+}
+.group + .group {
+  margin-top: var(--space-5);
+}
+.groupTitle {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-subtle);
+  font-weight: 700;
+  padding: 0 var(--space-3) var(--space-2);
+}
+
+.link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 9px var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  font-weight: 500;
+  font-size: var(--text-base);
+  text-decoration: none;
+  transition: background 0.12s, color 0.12s;
+}
+.link:hover {
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+  text-decoration: none;
+}
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-border-strong);
+  flex-shrink: 0;
+}
+
+/* Active state = Tomah Blue (sanctioned structural use) */
+.active,
+.active:hover {
+  background: var(--color-blue);
+  color: var(--color-text-on-blue);
+}
+.active .dot {
+  background: var(--color-yellow);
+}
+
+.phase {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-text-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0 4px;
+}
+.active .phase {
+  color: var(--color-text-on-blue);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.foot {
+  padding: var(--space-3) var(--space-5);
+  border-top: 1px solid var(--color-border);
+  font-size: var(--text-xs);
+  color: var(--color-text-subtle);
+}
+
+@media (max-width: 900px) {
+  .sidebar {
+    position: fixed;
+    z-index: 40;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    box-shadow: var(--shadow-pop);
+  }
+  .sidebar.open {
+    transform: translateX(0);
+  }
+}

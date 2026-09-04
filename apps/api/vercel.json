@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "npm install --prefix ../..",
+  "buildCommand": "cd ../.. && npm run build --workspace @tomah/db && npx prisma migrate deploy --schema packages/db/prisma/schema.prisma && npm run build --workspace @tomah/api",
+  "functions": {
+    "api/index.ts": {
+      "maxDuration": 30,
+      "memory": 1024
+    }
+  },
+  "rewrites": [{ "source": "/(.*)", "destination": "/api" }]
+}

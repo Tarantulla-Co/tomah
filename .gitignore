@@ -1,38 +1,47 @@
 # dependencies
-/node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
+node_modules/
+.pnp
+.pnp.js
 
-# testing
-/coverage
+# builds
+dist/
+build/
+*.tsbuildinfo
 
-# next.js
-/.next/
-/.vinext/
-/out/
+# storefront (apps/storefront — Vite/vinext/Cloudflare)
+.next/
+.vinext/
+out/
+.wrangler/
+next-env.d.ts
+
+# vercel
+.vercel
+
+# uploaded assets (local storage adapter)
+apps/api/uploads/
+
+# env
+.env
+.env.local
+.env.*.local
+
+# prisma
+packages/db/prisma/*.db
+packages/db/prisma/migrations/dev.db*
+
+# logs
+*.log
+npm-debug.log*
+
+# editor / OS
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# test / coverage
+coverage/
 
 # misc
-.DS_Store
 *.pem
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# local environment
-.env*
-
-# deployment and generated files
-.vercel
-next-env.d.ts
-/dist/
-/.wrangler/
-/outputs/
-/work/
