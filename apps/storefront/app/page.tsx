@@ -1,7 +1,7 @@
 import Image from 'next/image';
 import { MobileNavigation } from '@/components/mobile-navigation';
 import { FaqAccordion } from '@/components/storefront/faq-accordion';
-import { ArrowRight, ArrowUpRight, BadgeCheck, Boxes, Globe2, MapPin, Mail, PackageCheck, Phone, ShieldCheck } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, BadgeCheck, Boxes, Globe2, MapPin, Mail, PackageCheck, Phone, ShieldCheck, Star } from 'lucide-react';
 import { api } from '@/lib/api';
 import { CATEGORY_META } from '@/lib/categories';
 import { formatMoney } from '@/lib/money';
@@ -34,7 +34,7 @@ const steps = [
 ];
 
 export default async function Home() {
-  const [featured, faqs] = await Promise.all([api.getFeatured(), api.getFaqs()]);
+  const [featured, faqs, testimonials] = await Promise.all([api.getFeatured(), api.getFaqs(), api.getTestimonials()]);
   const mapleProduct = featured.items.find((f) => f.product.category === 'MAPLE_PRODUCTS')?.product;
 
   return <main>
@@ -105,6 +105,30 @@ export default async function Home() {
       <div className="values-visual"><div className="stat-card"><Globe2 size={31} strokeWidth={1.5} /><strong>Global reach</strong><span>Supplying customers and markets worldwide</span></div><div className="quality-card"><BadgeCheck size={26} /><span>Quality-led sourcing</span></div></div>
       <div className="values-copy"><p className="eyebrow">Why Tomah</p><h2>International capability. Personal commitment.</h2><p>We build lasting relationships with producers, suppliers, distributors and customers. Every enquiry is handled with the integrity, reliability and care that dependable trade requires.</p><ul><li><ShieldCheck /> Reputable global supplier network</li><li><Boxes /> Retail and wholesale fulfilment</li><li><PackageCheck /> Clear coordination from order to delivery</li></ul></div>
     </section>
+
+    {testimonials.items.length > 0 && (
+      <section className="testimonials-home section shell">
+        <div className="faq-home-heading">
+          <p className="eyebrow" style={{ justifyContent: 'center' }}>What customers say</p>
+          <h2>Trusted by retailers and distributors.</h2>
+        </div>
+        <div className="testimonial-grid">
+          {testimonials.items.map((t) => (
+            <article className="testimonial-card" key={t.id}>
+              {t.rating != null && (
+                <div className="testimonial-stars" aria-label={`${t.rating} out of 5 stars`}>
+                  {Array.from({ length: 5 }, (_, i) => (
+                    <Star key={i} size={16} fill={i < t.rating! ? 'currentColor' : 'none'} />
+                  ))}
+                </div>
+              )}
+              <p className="testimonial-quote">“{t.quote}”</p>
+              <p className="testimonial-author">{t.name}{t.company && <span> · {t.company}</span>}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+    )}
 
     {faqs.items.length > 0 && (
       <section className="faq-home section shell" id="faq">

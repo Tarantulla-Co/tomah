@@ -13,7 +13,7 @@ export const mockApi = {
     return {items:rows.slice((page-1)*pageSize,page*pageSize),page,pageSize,total:rows.length,categoryCounts:Object.fromEntries(categories.map(c=>[c,products.filter(p=>p.category===c).length])) as Record<Category,number>};
   },
   async getProduct(slug:string):Promise<ProductDetail>{ const p=products.find(x=>x.slug===slug); if(!p) throw Object.assign(new Error('Product not found'),{status:404,code:'NOT_FOUND'}); return p; },
-  async getFaqs(){return {items:faqs}}, async getTestimonials(){return {items:testimonials}}, async getRecipes(){return {items:recipes.map(({ingredients,instructions,relatedProductIds,...r})=>r)}},
+  async getFaqs(){return {items:faqs}}, async getTestimonials(){return {items:testimonials}}, async getRecipes(){return {items:recipes.map(({ingredients,instructions,relatedProducts,...r})=>r)}},
   async getRecipe(slug:string){const r=recipes.find(x=>x.slug===slug);if(!r)throw Object.assign(new Error('Recipe not found'),{status:404,code:'NOT_FOUND'});return r},
   async getFeatured(){return {items:products.slice(0,3).map((product,position)=>({id:`featured-${position}`,position,product}))}},
   async createOrder(body:OrderCreateRequest):Promise<OrderCreateResponse>{

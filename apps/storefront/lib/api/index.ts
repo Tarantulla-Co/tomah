@@ -160,11 +160,11 @@ const liveApi = {
   },
   async getFaqs(): Promise<{ items: Faq[] }> {
     const r = await request<{ data: any[] }>('/public/content/faqs');
-    return { items: r.data.map((f, n) => ({ id: f.id, question: f.question, answer: f.answer, position: n })) };
+    return { items: r.data.map((f, n) => ({ id: f.id, question: f.question, answer: f.answer, category: f.category ?? null, position: n })) };
   },
   async getTestimonials(): Promise<{ items: Testimonial[] }> {
     const r = await request<{ data: any[] }>('/public/content/testimonials');
-    return { items: r.data.map((t) => ({ id: t.id, quote: t.quote, name: t.authorName, company: t.authorTitle ?? '' })) };
+    return { items: r.data.map((t) => ({ id: t.id, quote: t.quote, name: t.authorName, company: t.authorTitle ?? '', rating: t.rating ?? null })) };
   },
   async getRecipes(): Promise<{ items: RecipeSummary[] }> {
     const r = await request<{ data: any[] }>('/public/content/recipes');
@@ -177,7 +177,7 @@ const liveApi = {
       id: x.id, slug: x.slug, title: x.title, excerpt: x.summary ?? '',
       image: img(x.imageUrl ? { url: x.imageUrl } : null, x.title),
       ingredients: x.ingredients ?? [], instructions: x.steps ?? [],
-      relatedProductIds: (x.relatedProducts ?? []).map((p: any) => p.id),
+      relatedProducts: (x.relatedProducts ?? []).map(mapSummary),
     };
   },
   async getFeatured(): Promise<{ items: FeaturedProduct[] }> {
