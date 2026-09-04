@@ -1,16 +1,17 @@
 import Image from 'next/image';
 import { MobileNavigation } from '@/components/mobile-navigation';
-import { ArrowRight, BadgeCheck, Beef, Boxes, ChevronRight, Fish, Globe2, Leaf, Mail, MapPin, PackageCheck, Phone, ShieldCheck, Snowflake, Sprout, Wheat } from 'lucide-react';
+import { ArrowRight, BadgeCheck, Boxes, ChevronRight, Globe2, PackageCheck, Mail, MapPin, Phone, ShieldCheck } from 'lucide-react';
 import { api } from '@/lib/api';
+import { CATEGORY_META } from '@/lib/categories';
+import type { Category } from '@/lib/api/types';
 
-const categories = [
-  ['Poultry', 'Reliable frozen poultry supply for retailers and distributors.', Snowflake, 'navy'],
-  ['Meat & pork', 'Quality cuts sourced for dependable international supply.', Beef, 'cream'],
-  ['Seafood', 'Cold-chain seafood solutions selected for freshness and value.', Fish, 'steel'],
-  ['Grains', 'Staple grains for wholesale, foodservice and retail markets.', Wheat, 'gold'],
-  ['Vegetables & fries', 'Convenient frozen produce for consistent kitchen performance.', Sprout, 'cream'],
-  ['Maple products', 'Premium organic maple products for the everyday table.', Leaf, 'navy'],
-] as const;
+// Wholesale categories first, the one retail category (maple) last, as a
+// closing highlight. Kept separate from CATEGORY_ORDER (retail-first, used by
+// the shop's own category selector) since the two lists serve different UX.
+const HOME_CATEGORY_ORDER: Category[] = [
+  'POULTRY', 'PORK', 'MEATS', 'SEAFOOD', 'GRAINS', 'VEGETABLES_AND_FRIES', 'MAPLE_PRODUCTS',
+];
+const CARD_TONE = ['navy', 'cream', 'steel', 'gold', 'cream', 'steel', 'navy'] as const;
 
 const steps = [
   ['01', 'Tell us what you need', 'Share your product, volume and destination requirements.'],
@@ -50,7 +51,7 @@ export default async function Home() {
 
     <section className="products section" id="products"><div className="shell">
       <div className="section-heading"><div><p className="eyebrow">Our product range</p><h2>Products for businesses.<br />Quality for every table.</h2></div><p>From cold-chain essentials to pantry staples, our portfolio is built around consistency, value and reliable supply.</p></div>
-      <div className="category-grid">{categories.map(([name, detail, Icon, tone]) => <article className={`category-card ${tone}`} key={name}><Icon size={28} strokeWidth={1.6} /><div><h3>{name}</h3><p>{detail}</p></div><a href={name==='Maple products'?'/categories/MAPLE_PRODUCTS':'/quote'}>{name==='Maple products'?'Shop retail':'Request quote'} <ArrowRight size={17} /></a></article>)}</div>
+      <div className="category-grid">{HOME_CATEGORY_ORDER.map((id, i) => { const meta = CATEGORY_META[id]; const Icon = meta.icon; return <article className={`category-card ${CARD_TONE[i]}`} key={id}><Icon size={28} strokeWidth={1.6} /><div><h3>{meta.label}</h3><p>{meta.heroBlurb}</p></div><a href={`/categories/${id}`}>{meta.retail ? 'Shop retail' : 'Browse & request quote'} <ArrowRight size={17} /></a></article>; })}</div>
     </div></section>
 
     <section className="values section shell">
