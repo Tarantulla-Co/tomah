@@ -7,7 +7,7 @@ import { CATEGORY_ORDER, CATEGORY_META } from '@/lib/categories';
 import { StoreCartProvider, useStoreCart } from './cart-context';
 
 const NAV_LINKS: [string, string][] = [
-  ['Products', '/products'],
+  ['Home', '/'],
   ['Recipes', '/recipes'],
   ['Wholesale', '/wholesale'],
   ['Track order', '/orders/track'],

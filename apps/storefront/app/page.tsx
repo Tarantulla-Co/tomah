@@ -1,9 +1,23 @@
 import Image from 'next/image';
 import { MobileNavigation } from '@/components/mobile-navigation';
-import { ArrowRight, BadgeCheck, Boxes, ChevronRight, Globe2, PackageCheck, Mail, MapPin, Phone, ShieldCheck } from 'lucide-react';
+import { FaqAccordion } from '@/components/storefront/faq-accordion';
+import { ArrowRight, ArrowUpRight, BadgeCheck, Boxes, Globe2, MapPin, Mail, PackageCheck, Phone, ShieldCheck } from 'lucide-react';
 import { api } from '@/lib/api';
 import { CATEGORY_META } from '@/lib/categories';
+import { formatMoney } from '@/lib/money';
 import type { Category } from '@/lib/api/types';
+
+const NAV_LINKS: [string, string][] = [
+  ['Home', '#top'],
+  ['Retail', '/categories/MAPLE_PRODUCTS'],
+  ['Wholesale', '/wholesale'],
+  ['Track order', '/orders/track'],
+];
+
+// The three quick picks under the hero: the one retail category (real product
+// + price, pulled from the featured list below) plus the two proteins buyers
+// ask about most. Full 7-category grid still follows further down the page.
+const TOP_PICKS: Category[] = ['MAPLE_PRODUCTS', 'POULTRY', 'SEAFOOD'];
 
 // Wholesale categories first, the one retail category (maple) last, as a
 // closing highlight. Kept separate from CATEGORY_ORDER (retail-first, used by
@@ -20,28 +34,61 @@ const steps = [
 ];
 
 export default async function Home() {
-  const featured = await api.getFeatured();
+  const [featured, faqs] = await Promise.all([api.getFeatured(), api.getFaqs()]);
+  const mapleProduct = featured.items.find((f) => f.product.category === 'MAPLE_PRODUCTS')?.product;
+
   return <main className="landing-grid">
     <header className="site-header">
       <a href="#top" className="brand" aria-label="Tomah International home"><Image src="/images/tomah-logo-navy.jpg" alt="Tomah International" width={220} height={245} priority /></a>
-      <nav aria-label="Primary navigation"><a href="/products">Products</a><a href="#about">About us</a><a href="#how-it-works">How it works</a><a href="/categories/MAPLE_PRODUCTS">Maple shop</a></nav>
+      <nav aria-label="Primary navigation">{NAV_LINKS.map(([label, href]) => <a key={href} href={href}>{label}</a>)}</nav>
       <a className="button button-gold header-cta" href="/quote">Request a quote <ArrowRight size={17} /></a>
-      <MobileNavigation />
+      <MobileNavigation links={NAV_LINKS} actionLabel="Request a quote" actionHref="/quote" />
     </header>
 
-    <section className="hero" id="top">
-      <Image className="hero-image" src="/images/tomah-global-food-sourcing.png" alt="A refrigerated food shipment with poultry, seafood, grains and vegetables prepared for distribution" fill sizes="100vw" priority />
-      <div className="hero-overlay" />
-      <div className="hero-content shell">
-        <p className="eyebrow light">Global food trading & distribution</p>
-        <h1>Quality food.<br />Trusted sources.<br /><em>Delivered worldwide.</em></h1>
-        <p className="hero-copy">Tomah International connects retailers, distributors and customers with dependable frozen, dry and premium maple products from trusted producers around the globe.</p>
-        <div className="hero-actions">
-          <a className="button button-gold" href="/quote">Request a wholesale quote <ArrowRight size={18} /></a>
-          <a className="text-link light-link" href="#products">Explore our products <ChevronRight size={18} /></a>
+    <section className="home-hero" id="top">
+      <div className="shell home-hero-grid">
+        <div className="home-hero-copy">
+          <p className="home-hero-eyebrow"><ArrowUpRight size={15} /> Global food trading &amp; distribution</p>
+          <h1 className="home-hero-title">Quality food.<br />Trusted sources.<br /><em>Delivered worldwide.</em></h1>
+          <p className="home-hero-lede">Tomah International connects retailers, distributors and customers with dependable frozen, dry and premium maple products from trusted producers around the globe.</p>
+          <div className="home-hero-actions">
+            <a className="pill pill-solid" href="/quote">Request a quote</a>
+            <a className="pill pill-outline" href="#categories">Browse categories</a>
+          </div>
+        </div>
+        <div className="home-hero-visual">
+          <Image src="/images/tomah-global-food-sourcing.png" alt="A refrigerated food shipment with poultry, seafood, grains and vegetables prepared for distribution" fill sizes="(max-width: 900px) 100vw, 46vw" priority />
+          <div className="home-hero-badge">
+            <MapPin size={18} />
+            <div><strong>7901 4th St N, Ste 31326</strong><span>St. Petersburg, FL, USA</span></div>
+            <a href="/quote">Get in touch</a>
+          </div>
         </div>
       </div>
-      <div className="hero-proof shell"><span><Globe2 size={18} /> Worldwide supply</span><span><ShieldCheck size={18} /> Responsible sourcing</span><span><PackageCheck size={18} /> Dependable fulfilment</span></div>
+
+      <div className="shell home-picks" id="categories">
+        {TOP_PICKS.map((id) => {
+          const meta = CATEGORY_META[id];
+          const Icon = meta.icon;
+          const product = id === 'MAPLE_PRODUCTS' ? mapleProduct : undefined;
+          return (
+            <a className="pick-card" href={`/categories/${id}`} key={id}>
+              <span className="pick-card-media">
+                {product ? (
+                  <Image src={product.image.url} alt={product.image.alt} width={64} height={64} />
+                ) : (
+                  <Icon size={26} strokeWidth={1.6} />
+                )}
+              </span>
+              <span className="pick-card-body">
+                <b>{meta.label}</b>
+                <span>{product ? `From ${formatMoney(product.priceFrom, product.currency)}` : 'Wholesale · request quote'}</span>
+              </span>
+              <span className="pick-arrow" aria-hidden><ArrowUpRight size={16} /></span>
+            </a>
+          );
+        })}
+      </div>
     </section>
 
     <section className="intro section shell" id="about">
@@ -59,6 +106,17 @@ export default async function Home() {
       <div className="values-copy"><p className="eyebrow">Why Tomah</p><h2>International capability. Personal commitment.</h2><p>We build lasting relationships with producers, suppliers, distributors and customers. Every enquiry is handled with the integrity, reliability and care that dependable trade requires.</p><ul><li><ShieldCheck /> Reputable global supplier network</li><li><Boxes /> Retail and wholesale fulfilment</li><li><PackageCheck /> Clear coordination from order to delivery</li></ul></div>
     </section>
 
+    {faqs.items.length > 0 && (
+      <section className="faq-home section shell" id="faq">
+        <div className="section-heading">
+          <div><p className="eyebrow">Answers first</p><h2>Frequently asked questions.</h2></div>
+          <p>The most common questions from retailers and distributors before they order.</p>
+        </div>
+        <FaqAccordion items={faqs.items.slice(0, 6)} />
+        <a className="text-link" href="/faq">See all FAQs <ArrowRight size={18} /></a>
+      </section>
+    )}
+
     <section className="process section" id="how-it-works"><div className="shell">
       <p className="eyebrow light">A clear path to supply</p><div className="process-heading"><h2>Trade made straightforward.</h2><p>Our team keeps you informed from the first conversation through to delivery.</p></div>
       <div className="steps">{steps.map(([number, title, body]) => <article key={number}><span>{number}</span><h3>{title}</h3><p>{body}</p></article>)}</div>
@@ -73,7 +131,7 @@ export default async function Home() {
 
     <footer><div className="shell footer-grid">
       <div className="footer-brand"><Image src="/images/tomah-logo-navy.jpg" alt="Tomah International" width={180} height={200} /><p>Quality food products from trusted sources to markets around the world.</p></div>
-      <div><h3>Explore</h3><a href="/products">Products</a><a href="/about">About us</a><a href="#how-it-works">How it works</a><a href="/categories/MAPLE_PRODUCTS">Maple shop</a></div>
+      <div><h3>Explore</h3>{NAV_LINKS.map(([label, href]) => <a key={href} href={href}>{label}</a>)}<a href="/faq">FAQ</a></div>
       <div><h3>Contact</h3><a href="mailto:info@tomahinc.com"><Mail size={16} /> info@tomahinc.com</a><a href="tel:+14074055021"><Phone size={16} /> +1 407 405 5021</a><p><MapPin size={16} /> 7901 4th St N, Ste 31326<br />St. Petersburg, FL 33702</p></div>
     </div><div className="footer-bottom shell"><span>© 2026 Tomah International. All rights reserved.</span><span>Integrity · Quality · Reliability</span></div></footer>
   </main>;
