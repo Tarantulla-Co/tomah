@@ -37,7 +37,7 @@ export default async function Home() {
   const [featured, faqs] = await Promise.all([api.getFeatured(), api.getFaqs()]);
   const mapleProduct = featured.items.find((f) => f.product.category === 'MAPLE_PRODUCTS')?.product;
 
-  return <main className="landing-grid">
+  return <main>
     <header className="site-header">
       <a href="#top" className="brand" aria-label="Tomah International home"><Image src="/images/tomah-logo-navy.jpg" alt="Tomah International" width={220} height={245} priority /></a>
       <nav aria-label="Primary navigation">{NAV_LINKS.map(([label, href]) => <a key={href} href={href}>{label}</a>)}</nav>
@@ -108,12 +108,13 @@ export default async function Home() {
 
     {faqs.items.length > 0 && (
       <section className="faq-home section shell" id="faq">
-        <div className="section-heading">
-          <div><p className="eyebrow">Answers first</p><h2>Frequently asked questions.</h2></div>
+        <div className="faq-home-heading">
+          <p className="eyebrow" style={{ justifyContent: 'center' }}>Answers first</p>
+          <h2>Frequently asked questions.</h2>
           <p>The most common questions from retailers and distributors before they order.</p>
         </div>
         <FaqAccordion items={faqs.items.slice(0, 6)} />
-        <a className="text-link" href="/faq">See all FAQs <ArrowRight size={18} /></a>
+        <a className="text-link faq-home-more" href="/faq">See all FAQs <ArrowRight size={18} /></a>
       </section>
     )}
 
