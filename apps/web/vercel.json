@@ -1,0 +1,18 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "installCommand": "npm install --prefix ../..",
+  "buildCommand": "cd ../.. && npm run build --workspace @tomah/web",
+  "outputDirectory": "dist",
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://YOUR-API-DEPLOYMENT.vercel.app/api/:path*"
+    },
+    {
+      "source": "/uploads/:path*",
+      "destination": "https://YOUR-API-DEPLOYMENT.vercel.app/uploads/:path*"
+    },
+    { "source": "/((?!api/|uploads/).*)", "destination": "/index.html" }
+  ]
+}

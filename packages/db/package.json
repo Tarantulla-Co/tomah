@@ -1,0 +1,39 @@
+{
+  "name": "@tomah/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Tomah shared data layer — Prisma schema, generated client, and seed. Consumed by the admin API and (via the same schema) the customer storefront.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "generate": "prisma generate",
+    "migrate": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
+    "reset": "prisma migrate reset",
+    "seed": "tsx prisma/seed.ts",
+    "studio": "prisma studio",
+    "build": "prisma generate && tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "argon2": "^0.41.1",
+    "dotenv": "^16.4.5",
+    "prisma": "^5.22.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}
